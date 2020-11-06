@@ -4,6 +4,7 @@ using FreeSql.Internal;
 using FreeSql.Internal.CommonProvider;
 using FreeSql.Internal.Model;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
@@ -40,18 +41,65 @@ public static class FreeSqlExtensionsLinqSql
     /// <summary>
     /// 【linq to sql】专用扩展方法，不建议直接使用
     /// </summary>
-    public static ISelect<TReturn> Select<T1, TReturn>(this ISelect<T1> that, Expression<Func<T1, TReturn>> select)
+    public static ISelect<TReturn> Select<T1, TReturn>(this ISelect<T1> that, Expression<Func<T1, TReturn>> selector)
     {
         var s1p = that as Select1Provider<T1>;
-        if (typeof(TReturn) == typeof(T1)) return that as ISelect<TReturn>;
-        s1p._tables[0].Parameter = select.Parameters[0];
-        s1p._selectExpression = select.Body;
+        if (typeof(TReturn) == typeof(T1))
+        {
+            s1p._selectExpression = selector;
+            return that as ISelect<TReturn>;
+        }
+        s1p._tables[0].Parameter = selector.Parameters[0];
+        s1p._selectExpression = selector;
         if (s1p._orm.CodeFirst.IsAutoSyncStructure)
             (s1p._orm.CodeFirst as CodeFirstProvider)._dicSycedTryAdd(typeof(TReturn)); //._dicSyced.TryAdd(typeof(TReturn), true);
+
+        var map = new ReadAnonymousTypeInfo();
+        var field = new StringBuilder();
+        var index = CommonExpression.ReadAnonymousFieldAsCsName;
+
+        s1p._commonExpression.ReadAnonymousField(s1p._tables, field, map, ref index, selector, s1p, null, s1p._whereGlobalFilter, null, true);
+        var s1paf = new ReadAnonymousTypeAfInfo(map, field.Length > 0 ? field.Remove(0, 2).ToString() : null);
+
         var ret = (s1p._orm as BaseDbProvider).CreateSelectProvider<TReturn>(null) as Select1Provider<TReturn>;
-        Select0Provider.CopyData(s1p, ret, null);
+        Select0Provider.CopyDataSelected(s1p, ret);
+        var tb = new TableInfo();
+        tb.Type = typeof(TReturn);
+        tb.CsName = tb.Type.Name;
+        tb.DbName = tb.Type.Name;
+        tb.DisableSyncStructure = true;
+
+        map = new ReadAnonymousTypeInfo();
+        field = new StringBuilder();
+        foreach (var prop in typeof(TReturn).GetPropertiesDictIgnoreCase().Values)
+        {
+            var col = new ColumnInfo
+            {
+                Attribute = new FreeSql.DataAnnotations.ColumnAttribute
+                {
+                    Name = prop.Name,
+                    Position = (short)(tb.Columns.Count + 1)
+                },
+                CsName = prop.Name,
+                CsType = prop.PropertyType,
+                Table = tb
+            };
+            tb.Columns.Add(prop.Name, col);
+            tb.ColumnsByCs.Add(prop.Name, col);
+            tb.Properties.Add(prop.Name, prop);
+            map.Childs.Add(new ReadAnonymousTypeInfo
+            {
+
+            });
+        }
+        tb.ColumnsByPosition = tb.Columns.Select(a => a.Value).OrderBy(a => a.Attribute.Position).ToArray();
+        ret._tables[0].Table = tb;
+        ret._tables[0].Parameter = Expression.Parameter(tb.Type, ret._tables[0].Alias);
+        ret._selectExpression = Expression.Lambda<Func<TReturn, TReturn>>(ret._tables[0].Parameter, ret._tables[0].Parameter);
+        ret.WithSql(that.ToSql(s1paf.field));
         return ret;
     }
+
     /// <summary>
     /// 【linq to sql】专用扩展方法，不建议直接使用
     /// </summary>

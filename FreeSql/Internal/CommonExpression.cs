@@ -34,7 +34,7 @@ namespace FreeSql.Internal
             _common = common;
         }
 
-        internal const int ReadAnonymousFieldAsCsName = -53129;
+        public const int ReadAnonymousFieldAsCsName = -53129;
         public bool ReadAnonymousField(List<SelectTableInfo> _tables, StringBuilder field, ReadAnonymousTypeInfo parent, ref int index, Expression exp, Select0Provider select, BaseDiyMemberExpression diymemexp, List<GlobalFilter.Item> whereGlobalFilter, List<string> findIncludeMany, bool isAllDtoMap)
         {
             Func<ExpTSC> getTSC = () => new ExpTSC { _tables = _tables, diymemexp = diymemexp, tbtype = SelectTableInfoType.From, isQuoteName = true, isDisableDiyParse = false, style = ExpressionStyle.Where, whereGlobalFilter = whereGlobalFilter, dbParams = select?._params }; //#462 添加 DbParams 解决
@@ -90,21 +90,45 @@ namespace FreeSql.Internal
                     return false;
                 case ExpressionType.Parameter:
                 case ExpressionType.MemberAccess:
+                    //var ismemSelected = false;
                     if (_common.GetTableByEntity(exp.Type) != null &&
                         //判断 [JsonMap] 并非导航对象
                         (exp.NodeType == ExpressionType.Parameter || exp is MemberExpression expMem && (
                             _common.GetTableByEntity(expMem.Expression.Type)?.ColumnsByCs.ContainsKey(expMem.Member.Name) == false ||
                             expMem.Expression.NodeType == ExpressionType.Parameter && expMem.Expression.Type.IsAnonymousType()) //<>h__TransparentIdentifier 是 Linq To Sql 的类型判断，此时为匿名类型
                         )
+                        //||
+                        //(ismemSelected = exp.NodeType == ExpressionType.Parameter && exp.Type == _tables[0].Table.Type) //.Select(a => new { })
                         )
                     {
                         //加载表所有字段
                         var map = new List<SelectColumnInfo>();
-                        ExpressionSelectColumn_MemberAccess(_tables, map, SelectTableInfoType.From, exp, true, diymemexp);
+                        //if (ismemSelected) //.Select(a => new { })
+                        //{
+                        //    map.AddRange(_tables[0].Table.ColumnsByPosition.Select(a => new SelectColumnInfo
+                        //    {
+                        //        Table = _tables[0],
+                        //        Column = a
+                        //    }));
+                        //    if (map.Count == 1 && map[0].Column.CsType == map[0].Table.Table.Type)
+                        //    {
+                        //        parent.CsType = exp.Type;
+                        //        parent.DbField = ExpressionLambdaToSql(exp, getTSC());
+                        //        field.Append(", ").Append(parent.DbField);
+                        //        if (index >= 0) field.Append(_common.FieldAsAlias($"as{++index}"));
+                        //        else if (index == ReadAnonymousFieldAsCsName && string.IsNullOrEmpty(parent.CsName) == false &&
+                        //            parent.DbField.EndsWith(_common.QuoteSqlName(parent.CsName), StringComparison.CurrentCultureIgnoreCase) == false //DbField 和 CsName 相同的时候，不处理
+                        //            ) field.Append(_common.FieldAsAlias(parent.CsName));
+                        //        parent.MapType = SearchColumnByField(_tables, null, parent.DbField)?.Attribute.MapType ?? exp.Type;
+                        //        return false;
+                        //    }
+                        //}
+                        //else 
+                            ExpressionSelectColumn_MemberAccess(_tables, map, SelectTableInfoType.From, exp, true, diymemexp);
                         var tb = parent.Table = map.First().Table.Table;
                         parent.CsType = tb.Type;
                         parent.Consturctor = tb.Type.InternalGetTypeConstructor0OrFirst();
-                        parent.IsEntity = true;
+                        parent.IsEntity = true; //exp.Type.IsAnonymousType() == false;
                         for (var idx = 0; idx < map.Count; idx++)
                         {
                             var child = new ReadAnonymousTypeInfo
@@ -1652,7 +1676,7 @@ namespace FreeSql.Internal
             }
             return null;
         }
-        internal class ReplaceVisitor : ExpressionVisitor
+        public class ReplaceVisitor : ExpressionVisitor
         {
             private ParameterExpression parameter;
             private ParameterExpression oldParameter;
@@ -1670,7 +1694,7 @@ namespace FreeSql.Internal
             }
         }
 
-        internal class ReplaceHzyTupleToMultiParam : ExpressionVisitor
+        public class ReplaceHzyTupleToMultiParam : ExpressionVisitor
         {
             private List<SelectTableInfo> tables;
             private ParameterExpression[] parameters;

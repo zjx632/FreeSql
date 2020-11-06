@@ -108,6 +108,12 @@ namespace FreeSql.Internal.CommonProvider
             //to._orm = from._orm;
             //to._commonUtils = from._commonUtils;
             //to._commonExpression = from._commonExpression;
+            to._distinct = from._distinct;
+            to._selectExpression = from._selectExpression;
+            CopyDataSelected(from, to);
+        }
+        public static void CopyDataSelected(Select0Provider from, Select0Provider to)
+        {
             to._transaction = from._transaction;
             to._connection = from._connection;
             to._trackToList = from._trackToList;
@@ -116,8 +122,6 @@ namespace FreeSql.Internal.CommonProvider
 #else
             to._includeToListAsync = new List<Func<object, Task>>(from._includeToListAsync.ToArray());
 #endif
-            to._distinct = from._distinct;
-            to._selectExpression = from._selectExpression;
             to._whereGlobalFilter = new List<GlobalFilter.Item>(from._whereGlobalFilter.ToArray());
         }
 

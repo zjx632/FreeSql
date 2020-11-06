@@ -141,14 +141,14 @@ public static partial class FreeSqlGlobalExtensions
             null :
             Activator.CreateInstance(a.ParameterType, null)).ToArray());
     }
-    internal static NewExpression InternalNewExpression(this Type that)
+    public static NewExpression InternalNewExpression(this Type that)
     {
         var ctor = that.InternalGetTypeConstructor0OrFirst();
         return Expression.New(ctor, ctor.GetParameters().Select(a => Expression.Constant(a.ParameterType.CreateInstanceGetDefaultValue(), a.ParameterType)));
     }
 
     static ConcurrentDictionary<Type, ConstructorInfo> _dicInternalGetTypeConstructor0OrFirst = new ConcurrentDictionary<Type, ConstructorInfo>();
-    internal static ConstructorInfo InternalGetTypeConstructor0OrFirst(this Type that, bool isThrow = true)
+    public static ConstructorInfo InternalGetTypeConstructor0OrFirst(this Type that, bool isThrow = true)
     {
         var ret = _dicInternalGetTypeConstructor0OrFirst.GetOrAdd(that, tp =>
             tp.GetConstructor(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, new Type[0], null) ??
