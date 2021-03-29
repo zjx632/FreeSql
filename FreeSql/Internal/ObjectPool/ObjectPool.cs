@@ -103,8 +103,7 @@ namespace FreeSql.Internal.ObjectPool
         /// <param name="interval"></param>
         private void CheckAvailable(int interval)
         {
-
-            new Thread(() =>
+            var ts = new ThreadStart(() =>
             {
 
                 if (UnavailableException != null)
@@ -147,7 +146,10 @@ namespace FreeSql.Internal.ObjectPool
 
                 RestoreToAvailable();
 
-            }).Start();
+            });
+
+
+            new Thread(ts) { IsBackground = true }.Start();
         }
 
         private void RestoreToAvailable()
